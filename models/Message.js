@@ -11,6 +11,10 @@ const MessageSchema = new mongoose.Schema({
   isDeleted: { type: Boolean, default: false }, // Soft delete flag
   isEdited: { type: Boolean, default: false }, // Track if message was edited
   editedAt: { type: Date }, // When the message was last edited
+  fileUrl: { type: String }, // For file messages
+  fileName: { type: String },
+  fileSize: { type: Number },
+  fileType: { type: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Message', MessageSchema); 

@@ -26,6 +26,33 @@ const upload = multer({
   },
 });
 
+// Configure multer for generic files (5MB limit, allow common document types)
+const fileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    // Allow common document and archive types
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip',
+      'application/x-zip-compressed',
+      'text/plain',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      // Add more as needed
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Unsupported file type'), false);
+    }
+  },
+});
+
 // Upload image endpoint
 router.post('/image', upload.single('image'), async (req, res) => {
   try {
@@ -59,6 +86,42 @@ router.post('/image', upload.single('image'), async (req, res) => {
       success: false,
       message: 'Failed to upload image',
       error: error.message
+    });
+  }
+});
+
+// Upload generic file endpoint
+router.post('/files/upload', fileUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+    // Convert buffer to base64
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    // Upload to Cloudinary (resource_type: 'raw' for non-image files)
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'chat-files',
+      resource_type: 'raw',
+      use_filename: true,
+      unique_filename: false,
+      filename_override: req.file.originalname,
+    });
+    res.json({
+      success: true,
+      fileUrl: result.secure_url,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      fileType: req.file.mimetype,
+      publicId: result.public_id,
+      message: 'File uploaded successfully',
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload file',
+      error: error.message,
     });
   }
 });

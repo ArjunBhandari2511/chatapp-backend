@@ -103,6 +103,50 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle sending a file message
+  socket.on('fileMessage', async (data) => {
+    try {
+      let messageDoc;
+      if (data.type === 'channel') {
+        messageDoc = new Message({
+          sender: socket.user.userId,
+          type: 'channel',
+          channel: data.chatId,
+          messageType: 'file',
+          fileUrl: data.fileUrl,
+          fileName: data.fileName,
+          fileSize: data.fileSize,
+          fileType: data.fileType,
+        });
+      } else if (data.type === 'direct') {
+        messageDoc = new Message({
+          sender: socket.user.userId,
+          type: 'direct',
+          recipient: data.to,
+          messageType: 'file',
+          fileUrl: data.fileUrl,
+          fileName: data.fileName,
+          fileSize: data.fileSize,
+          fileType: data.fileType,
+        });
+      }
+      await messageDoc.save();
+      await messageDoc.populate('sender', 'username email displayName profilePicture status about');
+      io.to(data.chatId).emit('fileMessage', messageDoc);
+      if (data.type === 'direct' && data.to) {
+        const recipientSocketId = userSockets[data.to];
+        if (recipientSocketId) {
+          const socketsInRoom = await io.in(data.chatId).allSockets();
+          if (!socketsInRoom.has(recipientSocketId)) {
+            io.to(recipientSocketId).emit('fileMessage', messageDoc);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error handling fileMessage:', err);
+    }
+  });
+
   // Typing indicator
   socket.on('typing', ({ roomId, sender }) => {
     // Broadcast to everyone else in the room
