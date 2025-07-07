@@ -324,24 +324,5 @@ app.post('/api/register', async (req, res, next) => {
   }
 });
 
-// Endpoint to fetch Twilio ICE servers for WebRTC
-app.get('/api/ice-servers', async (req, res) => {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const url = 'https://networking.twilio.com/v1/TurnTokens';
-  try {
-    const response = await axios.post(url, {}, {
-      auth: {
-        username: accountSid,
-        password: authToken
-      }
-    });
-    res.json(response.data.ice_servers);
-  } catch (err) {
-    console.error('Failed to fetch ICE servers from Twilio:', err?.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch ICE servers' });
-  }
-});
-
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
