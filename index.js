@@ -180,6 +180,107 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- WebRTC Signaling Events ---
+  // callUser: Initiate a call
+  socket.on('callUser', (data) => {
+    const { to, from, type, roomId } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] callUser from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('callUser', {
+        from: socket.user.userId, // always send just the userId string
+        type,
+        roomId,
+      });
+    } else {
+      socket.emit('error', { message: 'User is offline or not connected.' });
+    }
+  });
+
+  // callAccepted: Callee accepted the call
+  socket.on('callAccepted', (data) => {
+    const { to, roomId, type } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] callAccepted from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('callAccepted', {
+        from: socket.user.userId,
+        roomId,
+        type,
+      });
+    }
+  });
+
+  // callRejected: Callee rejected the call
+  socket.on('callRejected', (data) => {
+    const { to, roomId, type } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] callRejected from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('callRejected', {
+        from: socket.user.userId,
+        roomId,
+        type,
+      });
+    }
+  });
+
+  // webrtcOffer: Send SDP offer
+  socket.on('webrtcOffer', (data) => {
+    const { to, offer, roomId } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] webrtcOffer from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('webrtcOffer', {
+        from: socket.user.userId,
+        offer,
+        roomId,
+        type: data.type,
+      });
+    }
+  });
+
+  // webrtcAnswer: Send SDP answer
+  socket.on('webrtcAnswer', (data) => {
+    const { to, answer, roomId } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] webrtcAnswer from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('webrtcAnswer', {
+        from: socket.user.userId,
+        answer,
+        roomId,
+      });
+    }
+  });
+
+  // iceCandidate: Send ICE candidate
+  socket.on('iceCandidate', (data) => {
+    const { to, candidate, roomId } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] iceCandidate from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('iceCandidate', {
+        from: socket.user.userId,
+        candidate,
+        roomId,
+      });
+    }
+  });
+
+  // endCall: End the call
+  socket.on('endCall', (data) => {
+    const { to, roomId } = data;
+    const recipientSocketId = userSockets[to];
+    console.log(`[SIGNAL] endCall from ${socket.user.userId} to ${to} (socket: ${recipientSocketId})`);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('endCall', {
+        from: socket.user.userId,
+        roomId,
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     delete userSockets[socket.user.userId];
     console.log('User disconnected:', socket.user.userId, 'Socket ID:', socket.id);
