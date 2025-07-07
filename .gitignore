@@ -27,4 +27,4 @@ yarn-error.log*
 .vscode/
 *.swp
 *.bak
-*.swo
+*.swo".env" 
