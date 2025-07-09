@@ -13,7 +13,7 @@ const axios = require('axios');
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors("*"));
 app.use(express.json());
 
 // MongoDB connection
