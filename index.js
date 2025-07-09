@@ -85,6 +85,14 @@ io.on('connection', (socket) => {
           imageUrl: data.imageUrl,
         });
       }
+      // Delivery logic for direct messages
+      if (data.type === 'direct' && data.recipient) {
+        const recipientSocketId = userSockets[data.recipient];
+        if (recipientSocketId) {
+          // Recipient is online, mark as delivered
+          messageDoc.deliveredTo = [data.recipient];
+        }
+      }
       await messageDoc.save();
       await messageDoc.populate('sender', 'username email displayName profilePicture status about');
       io.to(data.roomId).emit('messageReceived', messageDoc);
@@ -222,6 +230,22 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('Error handling deleteMessage:', err);
       socket.emit('error', { message: 'Failed to delete message' });
+    }
+  });
+
+  // Message read event for blue tick
+  socket.on('messageRead', async ({ messageId, userId, roomId }) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) return;
+      if (!message.readBy.includes(userId)) {
+        message.readBy.push(userId);
+        await message.save();
+        await message.populate('sender', 'username email displayName profilePicture status about');
+        io.to(roomId).emit('messageReadUpdate', { messageId, userId });
+      }
+    } catch (err) {
+      console.error('Error handling messageRead:', err);
     }
   });
 

@@ -15,6 +15,9 @@ const MessageSchema = new mongoose.Schema({
   fileName: { type: String },
   fileSize: { type: Number },
   fileType: { type: String },
+  // Blue tick feature fields
+  deliveredTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }], // Users who received the message
+  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }], // Users who read the message
 }, { timestamps: true });
 
 module.exports = mongoose.model('Message', MessageSchema); 
