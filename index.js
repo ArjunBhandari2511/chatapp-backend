@@ -8,6 +8,7 @@ const Message = require('./models/Message');
 const Channel = require('./models/Channel');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
 dotenv.config();
 
@@ -245,72 +246,6 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       console.error('Error handling messageRead:', err);
-    }
-  });
-
-  // --- WebRTC Signaling for Direct Calls ---
-  // Initiate a call (user-to-user only)
-  socket.on('call:initiate', ({ to, callType }) => {
-    // Only allow direct user-to-user calls
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:incoming', {
-        from: socket.user.userId,
-        callType, // 'video' or 'audio'
-      });
-    }
-  });
-
-  // Handle offer
-  socket.on('call:offer', ({ to, offer }) => {
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:offer', {
-        from: socket.user.userId,
-        offer,
-      });
-    }
-  });
-
-  // Handle answer
-  socket.on('call:answer', ({ to, answer }) => {
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:answer', {
-        from: socket.user.userId,
-        answer,
-      });
-    }
-  });
-
-  // Handle ICE candidates
-  socket.on('call:ice-candidate', ({ to, candidate }) => {
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:ice-candidate', {
-        from: socket.user.userId,
-        candidate,
-      });
-    }
-  });
-
-  // Handle call rejection
-  socket.on('call:reject', ({ to }) => {
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:rejected', {
-        from: socket.user.userId,
-      });
-    }
-  });
-
-  // Handle call end
-  socket.on('call:end', ({ to }) => {
-    const recipientSocketId = userSockets[to];
-    if (recipientSocketId && to !== socket.user.userId) {
-      io.to(recipientSocketId).emit('call:ended', {
-        from: socket.user.userId,
-      });
     }
   });
 
