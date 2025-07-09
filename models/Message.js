@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true },
+  content: { type: String }, // Not required for file/image messages
   type: { type: String, enum: ['channel', 'direct'], required: true },
-  messageType: { type: String, enum: ['text', 'image'], default: 'text' },
+  messageType: { type: String, enum: ['text', 'image', 'file'], default: 'text' },
   imageUrl: { type: String }, // For image messages
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }, // for channel messages
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // for direct messages

@@ -120,7 +120,7 @@ io.on('connection', (socket) => {
           sender: socket.user.userId,
           type: 'channel',
           channel: data.chatId,
-          messageType: 'file',
+          messageType: 'file', // Always set
           fileUrl: data.fileUrl,
           fileName: data.fileName,
           fileSize: data.fileSize,
@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
           sender: socket.user.userId,
           type: 'direct',
           recipient: data.to,
-          messageType: 'file',
+          messageType: 'file', // Always set
           fileUrl: data.fileUrl,
           fileName: data.fileName,
           fileSize: data.fileSize,

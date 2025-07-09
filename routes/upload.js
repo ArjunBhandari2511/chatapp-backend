@@ -31,24 +31,49 @@ const fileUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // Allow common document and archive types
+    // Allow common document, image, video, and archive types
     const allowedTypes = [
+      // Documents
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/zip',
-      'application/x-zip-compressed',
-      'text/plain',
       'application/vnd.ms-powerpoint',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain',
+      // Archives
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/x-rar-compressed',
+      'application/x-tar',
+      'application/gzip',
+      // Images
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/bmp',
+      'image/svg+xml',
+      // Videos
+      'video/mp4',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/x-matroska',
+      'video/x-ms-wmv',
+      'video/mpeg',
+      // Audio
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp3',
+      'audio/ogg',
       // Add more as needed
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Unsupported file type'), false);
+      console.error('Unsupported file type attempted:', file.mimetype);
+      cb(new Error('Unsupported file type: ' + file.mimetype), false);
     }
   },
 });
@@ -91,31 +116,72 @@ router.post('/image', upload.single('image'), async (req, res) => {
 });
 
 // Upload generic file endpoint
-router.post('/files/upload', fileUpload.single('file'), async (req, res) => {
+router.post('/files/upload', (req, res, next) => {
+  fileUpload.single('file')(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      // Multer error (file too large, etc.)
+      return res.status(400).json({ message: err.message });
+    } else if (err) {
+      // Custom error (unsupported type, etc.)
+      return res.status(400).json({ message: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file provided' });
     }
-    // Convert buffer to base64
-    const b64 = Buffer.from(req.file.buffer).toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    // Upload to Cloudinary (resource_type: 'raw' for non-image files)
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'chat-files',
-      resource_type: 'raw',
-      use_filename: true,
-      unique_filename: false,
-      filename_override: req.file.originalname,
-    });
-    res.json({
-      success: true,
-      fileUrl: result.secure_url,
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      fileType: req.file.mimetype,
-      publicId: result.public_id,
-      message: 'File uploaded successfully',
-    });
+    // If image, use data URI; if not, use upload_stream
+    if (req.file.mimetype.startsWith('image/')) {
+      // Convert buffer to base64
+      const b64 = Buffer.from(req.file.buffer).toString('base64');
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: 'chat-files',
+        resource_type: 'image',
+        use_filename: true,
+        unique_filename: false,
+        filename_override: req.file.originalname,
+      });
+      return res.json({
+        success: true,
+        fileUrl: result.secure_url,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        fileType: req.file.mimetype,
+        publicId: result.public_id,
+        message: 'File uploaded successfully',
+      });
+    } else {
+      // For non-images, use upload_stream and buffer
+      const stream = cloudinary.uploader.upload_stream({
+        folder: 'chat-files',
+        resource_type: 'raw',
+        use_filename: true,
+        unique_filename: false,
+        filename_override: req.file.originalname,
+      }, (error, result) => {
+        if (error) {
+          console.error('File upload error:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to upload file',
+            error: error.message,
+          });
+        }
+        res.json({
+          success: true,
+          fileUrl: result.secure_url,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          fileType: req.file.mimetype,
+          publicId: result.public_id,
+          message: 'File uploaded successfully',
+        });
+      });
+      stream.end(req.file.buffer);
+    }
   } catch (error) {
     console.error('File upload error:', error);
     res.status(500).json({
