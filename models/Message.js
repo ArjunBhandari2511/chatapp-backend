@@ -18,6 +18,11 @@ const MessageSchema = new mongoose.Schema({
   // Blue tick feature fields
   deliveredTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }], // Users who received the message
   readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }], // Users who read the message
+  // Reactions: array of { emoji, user }
+  reactions: [{
+    emoji: { type: String, required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Message', MessageSchema); 

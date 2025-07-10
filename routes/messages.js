@@ -147,4 +147,29 @@ router.delete('/:messageId', authMiddleware, async (req, res) => {
   }
 });
 
+// Add or remove a reaction to a message
+router.post('/:messageId/reactions', authMiddleware, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    if (!emoji) return res.status(400).json({ message: 'Emoji is required' });
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ message: 'Message not found' });
+    const userId = req.user.userId;
+    // Find previous reaction by this user
+    const prevReaction = message.reactions.find(r => r.user.toString() === userId);
+    // Remove any previous reaction by this user
+    message.reactions = message.reactions.filter(r => r.user.toString() !== userId);
+    // If the previous reaction is the same as the new emoji, do not add it back (toggle off)
+    if (!prevReaction || prevReaction.emoji !== emoji) {
+      message.reactions.push({ emoji, user: userId });
+    }
+    await message.save();
+    await message.populate('sender', 'username email displayName profilePicture status about');
+    await message.populate('reactions.user', 'username displayName profilePicture');
+    res.json({ message });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

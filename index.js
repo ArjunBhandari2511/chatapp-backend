@@ -249,6 +249,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle message reactions
+  socket.on('reactToMessage', async (data) => {
+    try {
+      const { messageId, emoji, roomId } = data;
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+      const userId = socket.user.userId;
+      // Find previous reaction by this user
+      const prevReaction = message.reactions.find(r => r.user.toString() === userId);
+      // Remove any previous reaction by this user
+      message.reactions = message.reactions.filter(r => r.user.toString() !== userId);
+      // If the previous reaction is the same as the new emoji, do not add it back (toggle off)
+      if (!prevReaction || prevReaction.emoji !== emoji) {
+        message.reactions.push({ emoji, user: userId });
+      }
+      await message.save();
+      await message.populate('sender', 'username email displayName profilePicture status about');
+      await message.populate('reactions.user', 'username displayName profilePicture');
+      io.to(roomId).emit('messageReaction', message);
+    } catch (err) {
+      console.error('Error handling reactToMessage:', err);
+      socket.emit('error', { message: 'Failed to react to message' });
+    }
+  });
+
   socket.on('disconnect', () => {
     delete userSockets[socket.user.userId];
     console.log('User disconnected:', socket.user.userId, 'Socket ID:', socket.id);
