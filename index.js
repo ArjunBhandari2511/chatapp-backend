@@ -277,6 +277,59 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- WebRTC Video Call Signaling ---
+  socket.on('join-call-room', ({ roomId }) => {
+    socket.join(roomId);
+    // Optionally, notify others someone joined
+  });
+
+  socket.on('video-signal', ({ roomId, signal }) => {
+    // Relay signaling data to all other peers in the room
+    socket.to(roomId).emit('video-signal', { signal, from: socket.user.userId });
+  });
+
+  // --- Video Call Invitation Flow ---
+  socket.on('call-user', ({ toUserId, roomId, callType, callerInfo }) => {
+    const recipientSocketId = userSockets[toUserId];
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('incoming-call', {
+        fromUserId: socket.user.userId,
+        roomId,
+        callType,
+        callerInfo,
+      });
+    }
+  });
+
+  socket.on('call-accepted', ({ toUserId, roomId }) => {
+    const callerSocketId = userSockets[toUserId];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-accepted', {
+        fromUserId: socket.user.userId,
+        roomId,
+      });
+    }
+  });
+
+  socket.on('call-rejected', ({ toUserId, roomId }) => {
+    const callerSocketId = userSockets[toUserId];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-rejected', {
+        fromUserId: socket.user.userId,
+        roomId,
+      });
+    }
+  });
+
+  // On disconnect, notify all rooms this socket was in
+  socket.on('disconnecting', () => {
+    for (const roomId of socket.rooms) {
+      if (roomId !== socket.id) {
+        socket.to(roomId).emit('peer-left', { userId: socket.user.userId });
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     delete userSockets[socket.user.userId];
     console.log('User disconnected:', socket.user.userId, 'Socket ID:', socket.id);
