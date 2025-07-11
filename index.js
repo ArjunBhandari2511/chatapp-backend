@@ -285,6 +285,7 @@ io.on('connection', (socket) => {
   socket.on('call:request', (data) => {
     const { roomId, from, to, callType } = data;
     const calleeSocketId = userSockets[to];
+    console.log('[SIGNAL] call:request', { roomId, from, to, callType, calleeSocketId });
     if (calleeSocketId) {
       io.to(calleeSocketId).emit('call:incoming', { roomId, from, callType });
     }
@@ -293,6 +294,7 @@ io.on('connection', (socket) => {
   socket.on('call:accept', (data) => {
     const { roomId, from, to } = data;
     const callerSocketId = userSockets[to];
+    console.log('[SIGNAL] call:accept', { roomId, from, to, callerSocketId });
     if (callerSocketId) {
       io.to(callerSocketId).emit('call:accepted', { roomId, from });
     }
@@ -301,20 +303,30 @@ io.on('connection', (socket) => {
     if (callerSocketId) {
       io.sockets.sockets.get(callerSocketId)?.join(roomId);
     }
+    console.log(`[SIGNAL] Users joined room: ${roomId}`);
   });
 
   socket.on('call:reject', (data) => {
     const { roomId, from, to } = data;
     const callerSocketId = userSockets[to];
+    console.log('[SIGNAL] call:reject', { roomId, from, to, callerSocketId });
     if (callerSocketId) {
       io.to(callerSocketId).emit('call:rejected', { roomId, from });
     }
   });
 
   socket.on('signal', (data) => {
-    const { room, signal } = data;
-    // Relay signaling data to all other peers in the room
-    socket.to(room).emit('signal', { signal });
+    const { room, signal, to } = data;
+    console.log('[SIGNAL] signal event received', { room, signal, from: userId, to });
+    if (to && userSockets[to]) {
+      // Directly send to the intended peer
+      io.to(userSockets[to]).emit('signal', { signal, from: userId });
+      console.log(`[SIGNAL] signal sent directly to user: ${to}`);
+    } else {
+      // Fallback: relay to room
+      socket.to(room).emit('signal', { signal, from: userId });
+      console.log(`[SIGNAL] signal relayed to room: ${room}`);
+    }
   });
 
   socket.on('disconnect', () => {
