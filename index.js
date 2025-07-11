@@ -51,10 +51,14 @@ const onlineUsers = new Set();
 const userSockets = {};
 
 io.on('connection', (socket) => {
-  userSockets[socket.user.userId] = socket.id;
-  console.log('User connected:', socket.user.userId, 'Socket ID:', socket.id);
-  onlineUsers.add(socket.user.userId);
-  io.emit('userStatus', { userId: socket.user.userId, status: 'online' });
+  // Register userId from JWT
+  const userId = socket.user && socket.user.userId;
+  if (userId) {
+    userSockets[userId] = socket.id;
+  }
+  console.log('User connected:', userId, 'Socket ID:', socket.id);
+  onlineUsers.add(userId);
+  io.emit('userStatus', { userId: userId, status: 'online' });
   // Send the list of currently online users to the newly connected user
   socket.emit('currentOnline', { userIds: Array.from(onlineUsers) });
   // Join a room (channel or DM)
@@ -277,13 +281,57 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Video/Audio Call Signaling Logic
+  socket.on('call:request', (data) => {
+    const { roomId, from, to, callType } = data;
+    const calleeSocketId = userSockets[to];
+    if (calleeSocketId) {
+      io.to(calleeSocketId).emit('call:incoming', { roomId, from, callType });
+    }
+  });
+
+  socket.on('call:accept', (data) => {
+    const { roomId, from, to } = data;
+    const callerSocketId = userSockets[to];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call:accepted', { roomId, from });
+    }
+    // Both users join the signaling room
+    socket.join(roomId);
+    if (callerSocketId) {
+      io.sockets.sockets.get(callerSocketId)?.join(roomId);
+    }
+  });
+
+  socket.on('call:reject', (data) => {
+    const { roomId, from, to } = data;
+    const callerSocketId = userSockets[to];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call:rejected', { roomId, from });
+    }
+  });
+
+  socket.on('signal', (data) => {
+    const { room, signal } = data;
+    // Relay signaling data to all other peers in the room
+    socket.to(room).emit('signal', { signal });
+  });
+
   socket.on('disconnect', () => {
-    delete userSockets[socket.user.userId];
-    console.log('User disconnected:', socket.user.userId, 'Socket ID:', socket.id);
+    if (userId && userSockets[userId] === socket.id) {
+      delete userSockets[userId];
+    }
+    // Notify all rooms this socket was in
+    for (const room of socket.rooms) {
+      if (room !== socket.id) {
+        socket.to(room).emit('peer-left');
+      }
+    }
+    console.log('User disconnected:', userId, 'Socket ID:', socket.id);
     console.log('Current userSockets:', userSockets);
-    onlineUsers.delete(socket.user.userId);
-    io.emit('userStatus', { userId: socket.user.userId, status: 'offline' });
-    console.log(`Socket disconnected: ${socket.id}, user: ${socket.user.userId}`);
+    onlineUsers.delete(userId);
+    io.emit('userStatus', { userId: userId, status: 'offline' });
+    console.log(`Socket disconnected: ${socket.id}, user: ${userId}`);
   });
 });
 
