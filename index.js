@@ -281,53 +281,38 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Video/Audio Call Signaling Logic
-  socket.on('call:request', (data) => {
-    const { roomId, from, to, callType } = data;
-    const calleeSocketId = userSockets[to];
-    console.log('[SIGNAL] call:request', { roomId, from, to, callType, calleeSocketId });
-    if (calleeSocketId) {
-      io.to(calleeSocketId).emit('call:incoming', { roomId, from, callType });
-    }
-  });
+// --- Video/Audio Call Signaling ---
 
-  socket.on('call:accept', (data) => {
-    const { roomId, from, to } = data;
-    const callerSocketId = userSockets[to];
-    console.log('[SIGNAL] call:accept', { roomId, from, to, callerSocketId });
-    if (callerSocketId) {
-      io.to(callerSocketId).emit('call:accepted', { roomId, from });
-    }
-    // Both users join the signaling room
-    socket.join(roomId);
-    if (callerSocketId) {
-      io.sockets.sockets.get(callerSocketId)?.join(roomId);
-    }
-    console.log(`[SIGNAL] Users joined room: ${roomId}`);
-  });
+// User A requests a call with User B
+socket.on('call:request', ({ to, from, roomId, callType }) => {
+  const recipientSocketId = userSockets[to];
+  if (recipientSocketId) {
+    io.to(recipientSocketId).emit('call:incoming', { from, roomId, callType });
+  }
+});
 
-  socket.on('call:reject', (data) => {
-    const { roomId, from, to } = data;
-    const callerSocketId = userSockets[to];
-    console.log('[SIGNAL] call:reject', { roomId, from, to, callerSocketId });
-    if (callerSocketId) {
-      io.to(callerSocketId).emit('call:rejected', { roomId, from });
-    }
-  });
+// User B accepts the call
+socket.on('call:accept', ({ to, from, roomId, callType }) => {
+  const callerSocketId = userSockets[to];
+  if (callerSocketId) {
+    io.to(callerSocketId).emit('call:accepted', { from, roomId, callType });
+  }
+});
 
-  socket.on('signal', (data) => {
-    const { room, signal, to } = data;
-    console.log('[SIGNAL] signal event received', { room, signal, from: userId, to });
-    if (to && userSockets[to]) {
-      // Directly send to the intended peer
-      io.to(userSockets[to]).emit('signal', { signal, from: userId });
-      console.log(`[SIGNAL] signal sent directly to user: ${to}`);
-    } else {
-      // Fallback: relay to room
-      socket.to(room).emit('signal', { signal, from: userId });
-      console.log(`[SIGNAL] signal relayed to room: ${room}`);
-    }
-  });
+// User B rejects the call
+socket.on('call:reject', ({ to, from, roomId }) => {
+  const callerSocketId = userSockets[to];
+  if (callerSocketId) {
+    io.to(callerSocketId).emit('call:rejected', { from, roomId });
+  }
+});
+
+// WebRTC signaling relay
+socket.on('signal', ({ room, signal }) => {
+  // Relay to all other sockets in the room
+  socket.to(room).emit('signal', { signal });
+});
+
 
   socket.on('disconnect', () => {
     if (userId && userSockets[userId] === socket.id) {
