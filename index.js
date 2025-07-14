@@ -28,6 +28,12 @@ app.use('/api/messages', require('./routes/messages'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/profile', require('./routes/profile'));
 
+app.get('/ping', (req, res) => {
+  res.json({
+    message: 'Server is up and running'
+  });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
