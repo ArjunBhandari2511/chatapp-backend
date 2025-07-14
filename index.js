@@ -286,42 +286,30 @@ io.on('connection', (socket) => {
 // User A requests a call with User B
 socket.on('call:request', ({ to, from, roomId, callType }) => {
   const recipientSocketId = userSockets[to];
-  console.log('[Socket] call:request from', from, 'to', to, 'roomId', roomId, 'callType', callType, 'recipientSocketId', recipientSocketId);
   if (recipientSocketId) {
     io.to(recipientSocketId).emit('call:incoming', { from, roomId, callType });
-    console.log('[Socket] Emitted call:incoming to', recipientSocketId, { from, roomId, callType });
-  } else {
-    console.log('[Socket] No recipientSocketId for', to);
   }
 });
 
 // User B accepts the call
-socket.on('call:accept', ({ to, from, roomId, callType }) => {
+socket.on('call:accept', ({ to, from, roomId }) => {
   const callerSocketId = userSockets[to];
-  console.log('[Socket] call:accept from', from, 'to', to, 'roomId', roomId, 'callType', callType, 'callerSocketId', callerSocketId);
   if (callerSocketId) {
-    io.to(callerSocketId).emit('call:accepted', { from, roomId, callType });
-    console.log('[Socket] Emitted call:accepted to', callerSocketId, { from, roomId, callType });
-  } else {
-    console.log('[Socket] No callerSocketId for', to);
+    io.to(callerSocketId).emit('call:accepted', { from, roomId });
   }
 });
 
 // User B rejects the call
 socket.on('call:reject', ({ to, from, roomId }) => {
   const callerSocketId = userSockets[to];
-  console.log('[Socket] call:reject from', from, 'to', to, 'roomId', roomId, 'callerSocketId', callerSocketId);
   if (callerSocketId) {
     io.to(callerSocketId).emit('call:rejected', { from, roomId });
-    console.log('[Socket] Emitted call:rejected to', callerSocketId, { from, roomId });
-  } else {
-    console.log('[Socket] No callerSocketId for', to);
   }
 });
 
 // WebRTC signaling relay
 socket.on('signal', ({ room, signal }) => {
-  console.log('[Socket] signal relay in room', room, 'signal', signal);
+  // Relay to all other sockets in the room
   socket.to(room).emit('signal', { signal });
 });
 
